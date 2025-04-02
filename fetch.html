@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Update Slots Launch Data</title>
+</head>
+<body>
+  <h1>Updating Slots Launch Data...</h1>
+  <p>Check the console (right-click → Inspect → Console).</p>
+
+  <script>
+  let existingData = { games: [], providers: [], types: [], themes: [], lastUpdated: '' };
+  let newGames = [];
+  let newProviders = [];
+  let newTypes = [];
+  let newThemes = [];
+  let currentPage = 1;
+  const gamesPerPage = 150;
+  let hasMoreGames = true;
+
+  const lastUpdateDate = '2025-04-01';
+
+  async function fetchUpdatedData() {
+    var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+    myHeaders.append("Accept", "application/json");
+    myHeaders.append("Origin", "livex.ro");
+
+    var requestOptions = {
+      method: 'GET',
+      headers: myHeaders,
+      redirect: 'follow'
+    };
+
+    try {
+      const existingResponse = await fetch('YOUR_JSON_URL');
+      existingData = await existingResponse.json();
+    } catch (error) {
+      console.log('Fișierul JSON existent nu a fost găsit, se creează unul nou.');
+    }
+
+    while (hasMoreGames) {
+      console.log(`Fetching games page ${currentPage}...`);
+      const response = await fetch(`https://cors-anywhere.herokuapp.com/https://slotslaunch.com/api/games?token=V8ZqvzwyCNEnhROo4Fh2TAODpwZda2CtcoeLWu2WvkF3cQopek&per_page=${gamesPerPage}&page=${currentPage}&updated_at=${lastUpdateDate}`, requestOptions);
+      const data = await response.json();
+
+      if (data.data.length === 0 || data.meta.current_page === data.meta.last_page) {
+        hasMoreGames = false;
+      }
+
+      newGames = newGames.concat(data.data);
+      currentPage++;
+    }
+
+    currentPage = 1;
+    let hasMoreProviders = true;
+    while (hasMoreProviders) {
+      console.log(`Fetching providers page ${currentPage}...`);
+      const response = await fetch(`https://cors-anywhere.herokuapp.com/https://slotslaunch.com/api/providers?token=V8ZqvzwyCNEnhROo4Fh2TAODpwZda2CtcoeLWu2WvkF3cQopek&per_page=100&page=${currentPage}`, requestOptions);
+      const data = await response.json();
+
+      if (data.data.length === 0 || data.meta.current_page === data.meta.last_page) {
+        hasMoreProviders = false;
+      }
+
+      newProviders = newProviders.concat(data.data);
+      currentPage++;
+    }
+
+    console.log('Fetching types...');
+    const typesResponse = await fetch(`https://cors-anywhere.herokuapp.com/https://slotslaunch.com/api/types?token=V8ZqvzwyCNEnhROo4Fh2TAODpwZda2CtcoeLWu2WvkF3cQopek&per_page=100`, requestOptions);
+    const typesData = await typesResponse.json();
+    newTypes = typesData.data;
+
+    console.log('Fetching themes...');
+    const themesResponse = await fetch(`https://cors-anywhere.herokuapp.com/https://slotslaunch.com/api/themes?token=V8ZqvzwyCNEnhROo4Fh2TAODpwZda2CtcoeLWu2WvkF3cQopek&per_page=100`, requestOptions);
+    const themesData = await themesResponse.json();
+    newThemes = themesData.data;
+
+    newGames.forEach(newGame => {
+      const existingIndex = existingData.games.findIndex(game => game.id === newGame.id);
+      if (existingIndex !== -1) {
+        existingData.games[existingIndex] = newGame;
+      } else {
+        existingData.games.push(newGame);
+      }
+    });
+
+    existingData.providers = newProviders;
+    existingData.types = newTypes;
+    existingData.themes = newThemes;
+    existingData.lastUpdated = new Date().toISOString().split('T')[0];
+
+    console.log(`Total games after update: ${existingData.games.length}`);
+    console.log(`Total providers: ${existingData.providers.length}`);
+    console.log(`Total types: ${existingData.types.length}`);
+    console.log(`Total themes: ${existingData.themes.length}`);
+
+    const blob = new Blob([JSON.stringify(existingData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'slotslaunch_data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  fetchUpdatedData();
+  </script>
+</body>
+</html>
